@@ -1,0 +1,4 @@
+*.json
+Manifest.toml
+coverage/
+docs/build/
