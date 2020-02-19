@@ -1,5 +1,5 @@
 name = "DeterminantalPointProcesses"
-uuid = "9d4a7304-c3b4-5347-99a8-9cc862165b3e"
+uuid = "4d968f93-c0cd-4b7f-b189-b034d1a24a0e"
 version = "0.1.0"
 
 [deps]
