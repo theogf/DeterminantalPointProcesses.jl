@@ -1,7 +1,9 @@
-# DeterminantalPointProcesses
+# DeterminantalPointProcesses.jl
 
-[![Build Badge](https://travis-ci.org/alshedivat/DeterminantalPointProcesses.jl.svg)](https://travis-ci.org/alshedivat/DeterminantalPointProcesses.jl)
-[![Coverage Badge](https://coveralls.io/repos/github/alshedivat/DeterminantalPointProcesses.jl/badge.svg)](https://coveralls.io/github/alshedivat/DeterminantalPointProcesses.jl)
+[![Build Badge](https://travis-ci.org/theogf/DeterminantalPointProcesses.jl.svg)](https://travis-ci.org/theogf/DeterminantalPointProcesses.jl)
+[![Coverage Badge](https://coveralls.io/repos/github/theogf/DeterminantalPointProcesses.jl/badge.svg)](https://coveralls.io/github/theogf/DeterminantalPointProcesses.jl)
+
+! This package is supposed to continue on the work of <github.com/alshedivat/DeterminantalPointProcesses.jl>
 
 An efficient implementation of Determinantal Point Processes (DPP) in Julia.
 
