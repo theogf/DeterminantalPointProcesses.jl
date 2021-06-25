@@ -1,32 +1,35 @@
 # abstract types
 abstract type PointProcess end;
 
-
 # specific types
-mutable struct DeterminantalPointProcess <: PointProcess
-    L::Symmetric
-    Lfact::Eigen
+struct DeterminantalPointProcess{TL,Tfact} <: PointProcess
+    L::TL
+    Lfact::Tfact
     size::Int
-    rng::AbstractRNG
 
-    function DeterminantalPointProcess(L::Symmetric; seed::Int=42)
+    function DeterminantalPointProcess(L::Symmetric)
         Lfact = eigen(L)
-        new(L, Lfact, length(Lfact.values), MersenneTwister(seed))
+        return new{typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
     end
 
-    function DeterminantalPointProcess(Lfact::Eigen; seed::Int=42)
+    function DeterminantalPointProcess(Lfact::Eigen)
         L = Symmetric((Lfact.vectors .* Lfact.values') * Lfact.vectors')
-        new(L, Lfact, length(Lfact.values), MersenneTwister(seed))
+        return new{typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
     end
 end
 
+struct kDeterminantalPointProcess{T<:DPP} <: PointProcess
+    k::Int
+    dpp::T
+end
 
-mutable struct KroneckerDeterminantalPointProcess <: PointProcess
+(dpp::DeterminantalPointProcess)(k::Int) = kDPP(k, dpp)
+struct KroneckerDeterminantalPointProcess <: PointProcess
     # TODO
 end
 
-
 # aliases
 const DPP = DeterminantalPointProcess
+const kDPP = kDetermintanlPointProcess
 const KDPP = KroneckerDeterminantalPointProcess
-const MCMCState = Tuple{BitArray{1}, Array{Float64, 2}}
+const MCMCState = Tuple{BitArray{1},Array{Float64,2}}

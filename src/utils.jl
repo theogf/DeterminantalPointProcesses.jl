@@ -1,14 +1,13 @@
 # utility functions
 
-
-function get_first_nz_idx(x::Array{T}, mask = nothing) where {T<:Real}
+function get_first_nz_idx(x::Array{T}, mask=nothing) where {T<:Real}
     first_nz_idx = 0
     for i in 1:length(x)
         mask != nothing && !mask[i] && continue
         first_nz_idx = i
         abs(x[i]) > eps() && break
     end
-    first_nz_idx
+    return first_nz_idx
 end
 
 """Compute elementary symmetric polynomials for given Λ and k.
@@ -22,5 +21,5 @@ function elem_symm_poly(Λ::Array{Float64}, k::Int)
             poly[l, n] = poly[l, n - 1] + Λ[n - 1] * poly[l - 1, n - 1]
         end
     end
-    poly
+    return poly
 end

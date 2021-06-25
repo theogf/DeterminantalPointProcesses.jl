@@ -3,7 +3,6 @@ using Test
 using Random, LinearAlgebra, IterTools
 import Combinatorics: combinations
 
-
 rng = MersenneTwister(42)
 
 n = 5
@@ -11,7 +10,6 @@ k = 2
 A = rand(rng, n, n)
 L = Symmetric(A * A')
 dpp = DPP(L)
-
 
 @testset "Ensure correct pmf and logpmf computation" begin
     @testset "For DPP" begin
@@ -41,7 +39,6 @@ dpp = DPP(L)
     end
 end
 
-
 @testset "Ensure correct sampling from DPP" begin
     # compute the true distribution
     all_subsets = []
@@ -65,12 +62,12 @@ end
 
         # ensure that the empirical pmf is close to the true pmf
         total_variation = maximum(abs.(true_pmf - empirical_pmf))
-        @test total_variation ≈ 0.0 atol=1e-1
+        @test total_variation ≈ 0.0 atol = 1e-1
     end
 
     @testset "MCMC sampling" begin
         nb_samples = 1000
-        samples, state = randmcmc(dpp, nb_samples, return_final_state=true)
+        samples, state = randmcmc(dpp, nb_samples; return_final_state=true)
 
         # ensure that L_z_inv makes sense (i.e., noise did not accumulate)
         z, L_z_inv = state
@@ -85,10 +82,9 @@ end
 
         # ensure that the empirical pmf is close to the true pmf
         total_variation = maximum(abs.(true_pmf - empirical_pmf))
-        @test total_variation ≈ 0.0  atol=1e-1
+        @test total_variation ≈ 0.0 atol = 1e-1
     end
 end
-
 
 @testset "Ensure correct sampling from k-DPP" begin
     # compute the true distribution
@@ -117,12 +113,12 @@ end
 
         # ensure that the empirical pmf is close to the true pmf
         total_variation = maximum(abs.(true_pmf - empirical_pmf))
-        @test total_variation ≈ 0.0 atol=1e-1
+        @test total_variation ≈ 0.0 atol = 1e-1
     end
 
     @testset "MCMC sampling" begin
         nb_samples = 1000
-        samples, state = randmcmc(dpp, nb_samples, k, return_final_state=true)
+        samples, state = randmcmc(dpp, nb_samples, k; return_final_state=true)
 
         # ensure that L_z_inv makes sense (i.e., noise did not accumulate)
         z, L_z_inv = state
@@ -140,6 +136,7 @@ end
 
         # ensure that the empirical pmf is close to the true pmf
         total_variation = maximum(abs.(true_pmf - empirical_pmf))
-        @test_broken total_variation ≈ 0.0; atol=1e-1
+        @test_broken total_variation ≈ 0.0
+        atol = 1e-1
     end
 end

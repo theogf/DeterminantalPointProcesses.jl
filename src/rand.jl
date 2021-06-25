@@ -3,6 +3,7 @@ Sampling from DPP and k-DPP.
 
 Methods:
 --------
+    rand(dpp::DeterminantalPointProcess)
     rand(dpp::DeterminantalPointProcess, N::Int)
     randmcmc(dpp::DeterminantalPointProcess, N::Int)
     rand(dpp::DeterminantalPointProcess, N::Int, k::Int)
@@ -18,11 +19,9 @@ References:
 
 """Sample a mask for an elementary DPP.
 """
-function _sample_mask(Λ::SharedArray{Float64},
-                      M::SharedMatrix{Bool},
-                      i::Int, seed::Int)
-    rng = MersenneTwister(seed)
-
+function _sample_mask(
+    rng::AbstractRNG, Λ::SharedArray{Float64}, M::SharedMatrix{Bool}, i::Int
+)
     for j in 1:length(Λ)
         M[j, i] = (rand(rng) < Λ[j] / (Λ[j] + 1))
     end
@@ -30,12 +29,14 @@ end
 
 """Sample a mask for an elementary k-DPP.
 """
-function _sample_k_mask(Λ::SharedArray{Float64},
-                        M::SharedMatrix{Bool},
-                        E::SharedMatrix{Float64},
-                        k::Int, i::Int, seed::Int)
-    rng = MersenneTwister(seed)
-
+function _sample_k_mask(
+    rng::AbstractRNG,
+    Λ::SharedArray{Float64},
+    M::SharedMatrix{Bool},
+    E::SharedMatrix{Float64},
+    k::Int,
+    i::Int,
+)
     j = length(Λ)
     remaining = k
 
@@ -45,7 +46,7 @@ function _sample_k_mask(Λ::SharedArray{Float64},
         if j == remaining
             marg = 1
         else
-            marg = Λ[j] * E[remaining, j] / E[remaining + 1, j + 1];
+            marg = Λ[j] * E[remaining, j] / E[remaining + 1, j + 1]
         end
 
         # sample marginal
@@ -54,16 +55,14 @@ function _sample_k_mask(Λ::SharedArray{Float64},
             remaining -= 1
         end
         j -= 1
-      end
+    end
 end
 
 """Exact sampling from an elementary DPP. The algorithm based on [1].
 """
-function _sample_from_elementary(V::SharedMatrix,
-                                 M::SharedMatrix{Bool},
-                                 i::Int, seed::Int)
-    rng = MersenneTwister(seed)
-
+function _sample_from_elementary(
+    rng::AbstractRNG, V::SharedMatrix, M::SharedMatrix{Bool}, i::Int
+)
     # select the elementary DPP
     V_mask = M[:, i]
 
@@ -77,7 +76,7 @@ function _sample_from_elementary(V::SharedMatrix,
 
     Y = Int[]
     mask = ones(Bool, size(L, 2))
-    prob = Array{Float64}(undef,size(L, 1))
+    prob = Array{Float64}(undef, size(L, 1))
 
     for i in 1:size(L, 2)
         # compute probabilities
@@ -85,7 +84,7 @@ function _sample_from_elementary(V::SharedMatrix,
         for c in 1:size(L, 2)
             !mask[c] && continue
             for r in 1:size(L, 1)
-                prob[r] += L[r, c].^2
+                prob[r] += L[r, c] .^ 2
             end
         end
         prob ./= sum(prob)
@@ -114,89 +113,94 @@ function _sample_from_elementary(V::SharedMatrix,
         end
     end
 
-    sort(Y)
+    return sort(Y)
 end
 
-"""Exact sampling from a DPP [1].
+Random.rand(dpp::DPP, n::Int) = rand(GLOBAL_RNG, dpp, n)
+Random.rand(kdpp::kDPP, n::Int) = rand(GLOBAL_RNG, kdpp, n)
 """
-function Base.rand(dpp::DeterminantalPointProcess, N::Int)
+    Exact sampling from a DPP [1].
+"""
+function Base.rand(rng::AbstractRNG, dpp::DeterminantalPointProcess, N::Int)
     Λ = SharedArray{Float64}(dpp.Lfact.values)
     V = SharedMatrix{Float64}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_mask(Λ, M, i, seed),
-         1:N, abs.(rand(dpp.rng, Int, N)))
+    pmap((i, seed) -> _sample_mask(rng, Λ, M, i), 1:N, abs.(rand(rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
-    pmap((i, seed) -> _sample_from_elementary(V, M, i, seed),
-         1:N, abs.(rand(dpp.rng, Int, N)))
+    return pmap(
+        (i, seed) -> _sample_from_elementary(rng, V, M, i), 1:N, abs.(rand(rng, Int, N))
+    )
 end
 
 """Exact sampling from a k-DPP [1].
 """
-function Base.rand(dpp::DeterminantalPointProcess, N::Int, k::Int)
+function Base.rand(rng::AbstractRNG, kdpp::kDPP, N::Int)
+    dpp = kdpp.dpp
     Λ = SharedArray{Float64}(dpp.Lfact.values)
     V = SharedMatrix{Float64}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # compute elementary symmetric polynomials
-    E = SharedMatrix{Float64}(elem_symm_poly(dpp.Lfact.values, k))
+    E = SharedMatrix{Float64}(elem_symm_poly(dpp.Lfact.values, kdpp.k))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_k_mask(Λ, M, E, k, i, seed),
-         1:N, abs.(rand(dpp.rng, Int, N)))
+    pmap((i, seed) -> _sample_k_mask(rng, Λ, M, E, kdpp.k, i), 1:N, abs.(rand(rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
-    pmap((i, seed) -> _sample_from_elementary(V, M, i, seed),
-         1:N, abs.(rand(dpp.rng, Int, N)))
+    return pmap(
+        (i, seed) -> _sample_from_elementary(rng, V, M, i), 1:N, abs.(rand(rng, Int, N))
+    )
 end
 
 """Perform one MCMC accept-reject transition for DPP.
 """
-function _do_mcmc_step!(dpp::DeterminantalPointProcess, state::MCMCState)
+function _do_mcmc_step!(rng::AbstractRNG, dpp::DeterminantalPointProcess, state::MCMCState)
     # propose an element to swap
-    u = rand(dpp.rng, 1:dpp.size)
+    u = rand(rng, 1:(dpp.size))
     insert = !state[1][u]
 
     # attempt to make a transition
     if insert
         p = _comp_accept_prob(dpp, state, u, insert)
-        rand(dpp.rng) < p && _update_mcmc_state!(dpp, state, u, insert)
+        rand(rng) < p && _update_mcmc_state!(dpp, state, u, insert)
     else  # delete
         new_state = _update_mcmc_state(dpp, state, u, insert)
         p = _comp_accept_prob(dpp, new_state, u, insert)
-        if rand(dpp.rng) < p
+        if rand(rng) < p
             state[1] .= new_state[1]
             state[2] .= new_state[2]
         end
     end
 end
 
-"""Perform one MCMC accept-reject transition for k-DPP.
 """
-function _do_mcmc_k_step!(dpp::DeterminantalPointProcess, state::MCMCState)
+    Perform one MCMC accept-reject transition for k-DPP.
+"""
+function _do_mcmc_k_step!(rng::AbstractRNG, kdpp::kDPP, state::MCMCState)
     z, L_z_inv = state
 
     # propose the elements to swap
-    u, v = rand(findall(z)), rand(findall(z.==true))
+    u, v = rand(rng, findall(z)), rand(rng, findall(z .== true))
 
     # copy the state and delete the u element
-    new_state = _update_mcmc_state(dpp, state, u, false)
+    new_state = _update_mcmc_state(kdpp, state, u, false)
 
     # attempt to make a transition
-    p = _comp_accept_prob(dpp, new_state, u, v)
+    p = _comp_accept_prob(kdpp, new_state, u, v)
     if rand(dpp.rng) < p
         # insert the v element into the new state
-        _update_mcmc_state!(dpp, new_state, v, true)
+        _update_mcmc_state!(kdpp, new_state, v, true)
         state[1] .= new_state[1]
         state[2] .= new_state[2]
     end
 end
 
-
-function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState,
-                           u::Int, insert::Bool)
+function _comp_accept_prob(
+    dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
+)
     """Compute accept probability to insert / delete u from the state.
     """
     z, L_z_inv = state
@@ -207,12 +211,10 @@ function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState,
         d_u -= dot(b_u, L_z_inv[z, z] * b_u)
     end
 
-    insert ? min(1.0, d_u) : min(1.0, 1.0 / d_u)
+    return insert ? min(1.0, d_u) : min(1.0, 1.0 / d_u)
 end
 
-
-function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState,
-                           u::Int, v::Int)
+function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState, u::Int, v::Int)
     """Compute accept probability to swap u and v.
     """
     z, L_z_inv = state
@@ -224,12 +226,12 @@ function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState,
         d_v -= dot(b_v, L_z_inv[z, z] * b_v)
     end
 
-    min(1.0, d_v / d_u)
+    return min(1.0, d_v / d_u)
 end
 
-
-function _update_mcmc_state!(dpp::DeterminantalPointProcess, state::MCMCState,
-                             u::Int, insert::Bool)
+function _update_mcmc_state!(
+    dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
+)
     """Update the state after u is inserted / deleted.
     """
     z, L_z_inv = state
@@ -242,10 +244,10 @@ function _update_mcmc_state!(dpp::DeterminantalPointProcess, state::MCMCState,
             d_u -= dot(b_u, x_u)
 
             L_z_inv[z, z] += (x_u * x_u') / d_u
-            L_z_inv[z, u] = L_z_inv[u, z] = - x_u / d_u
+            L_z_inv[z, u] = L_z_inv[u, z] = -x_u / d_u
         end
 
-        L_z_inv[u, u] = 1. / d_u
+        L_z_inv[u, u] = 1.0 / d_u
         z[u] = true
     else  # delete
         z[u] = false
@@ -257,23 +259,25 @@ function _update_mcmc_state!(dpp::DeterminantalPointProcess, state::MCMCState,
     end
 end
 
-
-function _update_mcmc_state(dpp::DeterminantalPointProcess, state::MCMCState,
-                            u::Int, insert::Bool)
+function _update_mcmc_state(
+    dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
+)
     """Update the state after u is inserted / deleted.
     """
     new_state = deepcopy(state)
     _update_mcmc_state!(dpp, new_state, u, insert)
-    new_state
+    return new_state
 end
 
-
-function randmcmc(dpp::DeterminantalPointProcess, N::Int;
-                  init_state=nothing,
-                  return_final_state::Bool=false,
-                  mix_eps::Float64=1e-1,
-                  mixing_steps::Int=ceil(Int, dpp.size*log(dpp.size/mix_eps)),
-                  steps_between_samples::Int=mixing_steps)
+function randmcmc(
+    dpp::DeterminantalPointProcess,
+    N::Int;
+    init_state=nothing,
+    return_final_state::Bool=false,
+    mix_eps::Float64=1e-1,
+    mixing_steps::Int=ceil(Int, dpp.size * log(dpp.size / mix_eps)),
+    steps_between_samples::Int=mixing_steps,
+)
     """MCMC sampling from a DPP [2].
 
     TODO: Add support for running MCMC in parallel, similar as rand.
@@ -282,7 +286,7 @@ function randmcmc(dpp::DeterminantalPointProcess, N::Int;
     # initialize the Markov chain
     state = init_state
     if state == nothing
-        L_z_inv = Array{Float64}(undef,size(dpp.L))
+        L_z_inv = Array{Float64}(undef, size(dpp.L))
         z = bitrand(dpp.rng, dpp.size)  # TODO: improve initialization (?)
         if any(z)
             L_z_inv[z, z] = pinv(dpp.L[z, z])
@@ -306,16 +310,19 @@ function randmcmc(dpp::DeterminantalPointProcess, N::Int;
         end
     end
 
-    return_final_state ? (Y, state) : Y
+    return return_final_state ? (Y, state) : Y
 end
 
-
-function randmcmc(dpp::DeterminantalPointProcess, N::Int, k::Int;
-                  init_state=nothing,
-                  return_final_state::Bool=false,
-                  mix_eps::Float64=1e-1,
-                  mixing_steps::Int=ceil(Int, k*log(k / mix_eps)),
-                  steps_between_samples::Int=mixing_steps)
+function randmcmc(
+    dpp::DeterminantalPointProcess,
+    N::Int,
+    k::Int;
+    init_state=nothing,
+    return_final_state::Bool=false,
+    mix_eps::Float64=1e-1,
+    mixing_steps::Int=ceil(Int, k * log(k / mix_eps)),
+    steps_between_samples::Int=mixing_steps,
+)
     """MCMC sampling from a k-DPP [2].
 
     TODO: Add support for running MCMC in parallel, similar as rand.
@@ -324,7 +331,7 @@ function randmcmc(dpp::DeterminantalPointProcess, N::Int, k::Int;
     # initialize the Markov chain
     state = init_state
     if state == nothing
-        L_z_inv = Array{Float64}(undef,size(dpp.L))
+        L_z_inv = Array{Float64}(undef, size(dpp.L))
         z = falses(dpp.size)  # TODO: improve initialization (?)
         z[1:k] .= true
         if any(z)
@@ -350,5 +357,5 @@ function randmcmc(dpp::DeterminantalPointProcess, N::Int, k::Int;
         end
     end
 
-    return_final_state ? (Y, state) : Y
+    return return_final_state ? (Y, state) : Y
 end

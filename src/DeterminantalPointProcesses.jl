@@ -17,14 +17,14 @@ import Base: rand
 
 export
     # point process types and aliases
-    DeterminantalPointProcess, DPP,
+    DeterminantalPointProcess,
+    DPP,
 
     # mehtods
     logpmf,             # log probability mass function
     pmf,                # probability mass function
     rand,               # generate samples
     randmcmc            # generate samples using MCMC
-
 
 ### source files
 

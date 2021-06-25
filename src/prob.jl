@@ -26,11 +26,11 @@ end
 """Compute the probability of a sample `z` under the given DPP.
 """
 function pmf(dpp::DeterminantalPointProcess, z::Array{Int})
-    exp(logpmf(dpp, z))
+    return exp(logpmf(dpp, z))
 end
 
 """Compute the probability of a sample `z` under the given DPP.
 """
 function pmf(dpp::DeterminantalPointProcess, z::Array{Int}, k::Int)
-    exp(logpmf(dpp, z, k))
+    return exp(logpmf(dpp, z, k))
 end
