@@ -1,7 +1,7 @@
 ######################################################################
 # DeterminantalPointProcesses.jl
 # Determinantal Point Processes in Julia
-# http://github.com/alshedivat/DeterminantalPointProcesses.jl
+# http://github.com/theogf/DeterminantalPointProcesses.jl
 # MIT Licensed
 ######################################################################
 
@@ -9,16 +9,19 @@ __precompile__(true)
 
 module DeterminantalPointProcesses
 
+using Distributed
+using KernelFunctions
 using LinearAlgebra
 using Random: rand, bitrand, AbstractRNG, MersenneTwister
 using SharedArrays
-using Distributed
 import Base: rand
 
 export
     # point process types and aliases
     DeterminantalPointProcess,
     DPP,
+    kDeterminantalPointProcess,
+    kDPP,
 
     # mehtods
     logpmf,             # log probability mass function
