@@ -2,25 +2,25 @@
 abstract type PointProcess end;
 
 # specific types
-struct DeterminantalPointProcess{TL,Tfact} <: PointProcess
+struct DeterminantalPointProcess{T,TL<:AbstractMatrix{T},Tfact} <: PointProcess
     L::TL
     Lfact::Tfact
     size::Int
 
     function DeterminantalPointProcess(L::Symmetric)
         Lfact = eigen(L)
-        return new{typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
+        return new{eltype(L),typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
     end
 
     function DeterminantalPointProcess(Lfact::Eigen)
         L = Symmetric((Lfact.vectors .* Lfact.values') * Lfact.vectors')
-        return new{typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
+        return new{eltype(L),typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
     end
 end
 
-struct kDeterminantalPointProcess{T<:DPP} <: PointProcess
+struct kDeterminantalPointProcess{T,Tdpp<:DPP{T}} <: PointProcess
     k::Int
-    dpp::T
+    dpp::Tdpp
 end
 
 (dpp::DeterminantalPointProcess)(k::Int) = kDPP(k, dpp)

@@ -30,8 +30,8 @@ dpp = DPP(L)
         true_pmf = Float64[]
         true_logpmf = Float64[]
         for z in combinations(1:n, k)
-            push!(true_pmf, pmf(dpp, z, k))
-            push!(true_logpmf, logpmf(dpp, z, k))
+            push!(true_pmf, pmf(dpp(k), z))
+            push!(true_logpmf, logpmf(dpp(k), z))
         end
         @test sum(true_pmf) ≈ 1.0
         @test all(true_pmf .<= 1.0)
@@ -99,7 +99,7 @@ end
 
     @testset "Exact sampling" begin
         nb_samples = 10000
-        samples = rand(dpp, nb_samples, k)
+        samples = rand(dpp(k), nb_samples)
 
         # ensure that samples are of proper cardinality
         @test all(map(length, samples) .== k)
@@ -118,7 +118,7 @@ end
 
     @testset "MCMC sampling" begin
         nb_samples = 1000
-        samples, state = randmcmc(dpp, nb_samples, k; return_final_state=true)
+        samples, state = randmcmc(dpp(k), nb_samples; return_final_state=true)
 
         # ensure that L_z_inv makes sense (i.e., noise did not accumulate)
         z, L_z_inv = state

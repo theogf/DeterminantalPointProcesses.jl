@@ -17,23 +17,30 @@ References:
         clustering. NIPS, 2013.
 """
 
-"""Sample a mask for an elementary DPP.
 """
-function _sample_mask(
-    rng::AbstractRNG, Λ::SharedArray{Float64}, M::SharedMatrix{Bool}, i::Int
+    _sample_mask!(rng, M, Λ, i)
+
+Sample a mask for an elementary DPP.
+"""
+function _sample_mask!(
+    rng::AbstractRNG, M::SharedMatrix{Bool}, Λ::SharedArray{<:Real}, i::Int
 )
     for j in 1:length(Λ)
-        M[j, i] = (rand(rng) < Λ[j] / (Λ[j] + 1))
+        M[j, i] = rand(rng) < (Λ[j] / (Λ[j] + 1))
     end
+    return M
 end
 
-"""Sample a mask for an elementary k-DPP.
 """
-function _sample_k_mask(
+    _sample_k_mask!(rng, M, Λ, E, k, i)
+
+Sample a mask for an elementary k-DPP.
+"""
+function _sample_k_mask!(
     rng::AbstractRNG,
-    Λ::SharedArray{Float64},
     M::SharedMatrix{Bool},
-    E::SharedMatrix{Float64},
+    Λ::SharedArray{<:Real},
+    E::SharedMatrix{<:Real},
     k::Int,
     i::Int,
 )
@@ -56,13 +63,16 @@ function _sample_k_mask(
         end
         j -= 1
     end
+    return M
 end
 
-"""Exact sampling from an elementary DPP. The algorithm based on [1].
+"""
+    _sample_from_elementary(rng, V, M, i)
+Exact sampling from an elementary DPP. The algorithm based on [1].
 """
 function _sample_from_elementary(
-    rng::AbstractRNG, V::SharedMatrix, M::SharedMatrix{Bool}, i::Int
-)
+    rng::AbstractRNG, V::SharedMatrix{T}, M::SharedMatrix{Bool}, i::Int
+) where {T<:Real}
     # select the elementary DPP
     V_mask = M[:, i]
 
@@ -76,7 +86,7 @@ function _sample_from_elementary(
 
     Y = Int[]
     mask = ones(Bool, size(L, 2))
-    prob = Array{Float64}(undef, size(L, 1))
+    prob = Array{T}(undef, size(L, 1))
 
     for i in 1:size(L, 2)
         # compute probabilities
@@ -121,37 +131,37 @@ Random.rand(kdpp::kDPP, n::Int) = rand(GLOBAL_RNG, kdpp, n)
 """
     Exact sampling from a DPP [1].
 """
-function Base.rand(rng::AbstractRNG, dpp::DeterminantalPointProcess, N::Int)
-    Λ = SharedArray{Float64}(dpp.Lfact.values)
-    V = SharedMatrix{Float64}(dpp.Lfact.vectors)
+function Random.rand(rng::AbstractRNG, dpp::DeterminantalPointProcess{T}, N::Int) where {T<:Real}
+    Λ = SharedArray{T}(dpp.Lfact.values)
+    V = SharedMatrix{T}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_mask(rng, Λ, M, i), 1:N, abs.(rand(rng, Int, N)))
+    pmap((i, seed) -> _sample_mask!(MersenneTwister(seed), M, Λ, i), 1:N, abs.(rand(rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
     return pmap(
-        (i, seed) -> _sample_from_elementary(rng, V, M, i), 1:N, abs.(rand(rng, Int, N))
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i), 1:N, abs.(rand(rng, Int, N))
     )
 end
 
 """Exact sampling from a k-DPP [1].
 """
-function Base.rand(rng::AbstractRNG, kdpp::kDPP, N::Int)
+function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
     dpp = kdpp.dpp
-    Λ = SharedArray{Float64}(dpp.Lfact.values)
-    V = SharedMatrix{Float64}(dpp.Lfact.vectors)
+    Λ = SharedArray{T}(dpp.Lfact.values)
+    V = SharedMatrix{T}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # compute elementary symmetric polynomials
-    E = SharedMatrix{Float64}(elem_symm_poly(dpp.Lfact.values, kdpp.k))
+    E = SharedMatrix{T}(elem_symm_poly(dpp.Lfact.values, kdpp.k))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_k_mask(rng, Λ, M, E, kdpp.k, i), 1:N, abs.(rand(rng, Int, N)))
+    pmap((i, seed) -> _sample_k_mask!(MersenneTwister(seed), M, Λ, E, kdpp.k, i), 1:N, abs.(rand(rng, Int, N)))
 
     # step II: iteratively sample from a mixture of elementary DPPs
     return pmap(
-        (i, seed) -> _sample_from_elementary(rng, V, M, i), 1:N, abs.(rand(rng, Int, N))
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i), 1:N, abs.(rand(rng, Int, N))
     )
 end
 
@@ -190,7 +200,7 @@ function _do_mcmc_k_step!(rng::AbstractRNG, kdpp::kDPP, state::MCMCState)
 
     # attempt to make a transition
     p = _comp_accept_prob(kdpp, new_state, u, v)
-    if rand(dpp.rng) < p
+    if rand(rng) < p
         # insert the v element into the new state
         _update_mcmc_state!(kdpp, new_state, v, true)
         state[1] .= new_state[1]
@@ -270,14 +280,15 @@ function _update_mcmc_state(
 end
 
 function randmcmc(
-    dpp::DeterminantalPointProcess,
+    rng::AbstractRNG,
+    dpp::DeterminantalPointProcess{T},
     N::Int;
     init_state=nothing,
     return_final_state::Bool=false,
-    mix_eps::Float64=1e-1,
+    mix_eps::Real=1e-1,
     mixing_steps::Int=ceil(Int, dpp.size * log(dpp.size / mix_eps)),
     steps_between_samples::Int=mixing_steps,
-)
+) where {T}
     """MCMC sampling from a DPP [2].
 
     TODO: Add support for running MCMC in parallel, similar as rand.
@@ -285,9 +296,9 @@ function randmcmc(
     """
     # initialize the Markov chain
     state = init_state
-    if state == nothing
-        L_z_inv = Array{Float64}(undef, size(dpp.L))
-        z = bitrand(dpp.rng, dpp.size)  # TODO: improve initialization (?)
+    if state === nothing
+        L_z_inv = Array{T}(undef, size(dpp.L))
+        z = bitrand(rng, dpp.size)  # TODO: improve initialization (?)
         if any(z)
             L_z_inv[z, z] = pinv(dpp.L[z, z])
         end
@@ -295,18 +306,18 @@ function randmcmc(
     end
 
     # sanity check
-    @assert typeof(state) == MCMCState
+    @assert state isa MCMCState
 
     # mix the Markov chain
     for t in 1:mixing_steps
-        _do_mcmc_step!(dpp, state)
+        _do_mcmc_step!(rng, dpp, state)
     end
 
     Y = []
     for i in 1:N
         push!(Y, findall(state[1]))
         for t in 1:steps_between_samples
-            _do_mcmc_step!(dpp, state)
+            _do_mcmc_step!(rng, dpp, state)
         end
     end
 
@@ -314,15 +325,15 @@ function randmcmc(
 end
 
 function randmcmc(
-    dpp::DeterminantalPointProcess,
-    N::Int,
-    k::Int;
+    rng::AbstractRNG,
+    kdpp::kDPP{T},
+    N::Int;
     init_state=nothing,
     return_final_state::Bool=false,
-    mix_eps::Float64=1e-1,
-    mixing_steps::Int=ceil(Int, k * log(k / mix_eps)),
+    mix_eps::Real=1e-1,
+    mixing_steps::Int=ceil(Int, kdpp.k * log(kdpp.k / mix_eps)),
     steps_between_samples::Int=mixing_steps,
-)
+) where {T}
     """MCMC sampling from a k-DPP [2].
 
     TODO: Add support for running MCMC in parallel, similar as rand.
@@ -330,30 +341,30 @@ function randmcmc(
     """
     # initialize the Markov chain
     state = init_state
-    if state == nothing
-        L_z_inv = Array{Float64}(undef, size(dpp.L))
-        z = falses(dpp.size)  # TODO: improve initialization (?)
-        z[1:k] .= true
+    if state === nothing
+        L_z_inv = Array{T}(undef, size(kdpp.dpp.L))
+        z = falses(kdpp.dpp.size)  # TODO: improve initialization (?)
+        z[1:kdpp.k] .= true
         if any(z)
-            L_z_inv[z, z] = pinv(dpp.L[z, z])
+            L_z_inv[z, z] = pinv(kdpp.dpp.L[z, z])
         end
         state = (z, L_z_inv)
     end
 
     # sanity check
     @assert typeof(state) == MCMCState
-    @assert sum(state[1]) == k
+    @assert sum(state[1]) == kdpp.k
 
     # mix the Markov chain
     for t in 1:mixing_steps
-        _do_mcmc_k_step!(dpp, state)
+        _do_mcmc_k_step!(rng, kdpp.dpp, state)
     end
 
     Y = []
     for i in 1:N
         push!(Y, findall(state[1]))
         for t in 1:steps_between_samples
-            _do_mcmc_k_step!(dpp, state)
+            _do_mcmc_k_step!(rng, kdpp.dpp, state)
         end
     end
 
