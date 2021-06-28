@@ -344,12 +344,12 @@ function randmcmc(
     @assert state isa MCMCState
 
     # mix the Markov chain
-    for t in 1:mixing_steps
+    for _ in 1:mixing_steps
         _do_mcmc_step!(rng, dpp, state)
     end
 
     Y = []
-    for i in 1:N
+    for _ in 1:N
         push!(Y, findall(state[1]))
         for t in 1:steps_between_samples
             _do_mcmc_step!(rng, dpp, state)
@@ -431,12 +431,12 @@ function randmcmc(
     @assert sum(state[1]) == kdpp.k
 
     # mix the Markov chain
-    for t in 1:mixing_steps
+    for _ in 1:mixing_steps
         _do_mcmc_k_step!(rng, kdpp, state)
     end
 
     Y = []
-    for i in 1:N
+    for _ in 1:N
         push!(Y, findall(state[1]))
         for t in 1:steps_between_samples
             _do_mcmc_k_step!(rng, kdpp, state)

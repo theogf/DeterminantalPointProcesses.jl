@@ -3,14 +3,15 @@
 function get_first_nz_idx(x::Array{T}, mask=nothing) where {T<:Real}
     first_nz_idx = 0
     for i in 1:length(x)
-        mask != nothing && !mask[i] && continue
+        !isnothing(mask) && !mask[i] && continue
         first_nz_idx = i
         abs(x[i]) > eps() && break
     end
     return first_nz_idx
 end
 
-"""Compute elementary symmetric polynomials for given Λ and k.
+"""
+    Compute elementary symmetric polynomials for given Λ and k.
 """
 function elem_symm_poly(Λ::Array{Float64}, k::Int)
     N = length(Λ)
