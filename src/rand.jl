@@ -68,6 +68,7 @@ end
 
 """
     _sample_from_elementary(rng, V, M, i)
+
 Exact sampling from an elementary DPP. The algorithm based on [1].
 """
 function _sample_from_elementary(
@@ -126,10 +127,17 @@ function _sample_from_elementary(
     return sort(Y)
 end
 
-Random.rand(dpp::DPP, n::Int) = rand(GLOBAL_RNG, dpp, n)
-Random.rand(kdpp::kDPP, n::Int) = rand(GLOBAL_RNG, kdpp, n)
+Random.rand(pp::PointProcess, n::Int) = rand(GLOBAL_RNG, pp, n)
+Random.rand(pp::PointProcess) = rand(GLOBAL_RNG, pp)
+Random.rand(rng::AbstractRNG, pp::PointProcess) = first(rand(rng, pp, 1))
+
 """
-    Exact sampling from a DPP [1].
+    rand([rng::AbstractRNG], dpp::DeterminantalPointProcess)::Vector{Int}
+    rand([rng::AbstractRNG], dpp::DeterminantalPointProcess, n::Int)::Vector{Vector{Int}}
+
+Exact sampling from a DPP [1].
+Returns a vector of indices with respect to the `L` matrix passed to the `DeterminantalPointProcess`.
+The length of each vector can vary from 0 to the `size(L,1)`
 """
 function Random.rand(
     rng::AbstractRNG, dpp::DeterminantalPointProcess{T}, N::Int
@@ -154,7 +162,12 @@ function Random.rand(
 end
 
 """
-    Exact sampling from a k-DPP [1].
+    rand([rng::AbstractRNG], kdpp::kDeterminantalPointProcess)::Vector{Int}
+    rand([rng::AbstractRNG], kdpp::kDeterminantalPointProcess, n::Int)::Vector{Vector{Int}}
+
+Exact sampling from a k-DPP [1].
+Returns a vector of indices with respect to the `L` matrix passed to the `kDeterminantalPointProcess`
+Each vector is of size `k`.
 """
 function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
     dpp = kdpp.dpp
@@ -386,8 +399,9 @@ MCMC sampling from a k-DPP [2].
 - `mixing_steps`
 - `steps_between_samples`
 
-TODO: Add support for running MCMC in parallel, similar as rand.
-        Make sure parallelization produces unbiased and consistent samples.
+TODO: 
+- Add support for running MCMC in parallel, similar as rand.
+- Make sure parallelization produces unbiased and consistent samples.
 """
 function randmcmc(
     rng::AbstractRNG,
