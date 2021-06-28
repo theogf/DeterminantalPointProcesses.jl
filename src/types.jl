@@ -21,7 +21,6 @@ struct DeterminantalPointProcess{T,TL<:AbstractMatrix{T},Tfact} <: PointProcess
     size::Int
 end
 
-
 function DeterminantalPointProcess(L::AbstractMatrix)
     issymmetric(L) || error("Given matrix is not symmetric")
     Lfact = eigen(L)
@@ -34,11 +33,11 @@ function DeterminantalPointProcess(Lfact::Eigen)
 end
 
 function DeterminantalPointProcess(kernel::Kernel, X::AbstractVector)
-    DeterminantalPointProcess(kernelmatrix(kernel, X))
+    return DeterminantalPointProcess(kernelmatrix(kernel, X))
 end
 
 function DeterminantalPointProcess(kernel::Kernel, X::AbstractMatrix; obsdim=1)
-    DeterminantalPointProcess(kernel, vec_of_vecs(X; obsdim=obsdim))
+    return DeterminantalPointProcess(kernel, vec_of_vecs(X; obsdim=obsdim))
 end
 
 """
@@ -47,18 +46,18 @@ end
 Create a k-DPP where the size of the subsets is fixed to k.
 You can also create a k-DPP by calling `dpp(k)`
 """
-struct kDeterminantalPointProcess{T,Tdpp<:DPP{T}} <: PointProcess
+struct kDeterminantalPointProcess{T,Tdpp<:DeterminantalPointProcess{T}} <: PointProcess
     k::Int
     dpp::Tdpp
 end
 
 (dpp::DeterminantalPointProcess)(k::Int) = kDPP(k, dpp)
 # struct KroneckerDeterminantalPointProcess <: PointProcess
-    # TODO
+# TODO
 # end
 
 # aliases
 const DPP = DeterminantalPointProcess
-const kDPP = kDetermintanlPointProcess
+const kDPP = kDeterminantalPointProcess
 # const KDPP = KroneckerDeterminantalPointProcess
 const MCMCState = Tuple{BitArray{1},Array{Float64,2}}

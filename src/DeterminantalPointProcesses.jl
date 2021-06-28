@@ -12,7 +12,7 @@ module DeterminantalPointProcesses
 using Distributed
 using KernelFunctions
 using LinearAlgebra
-using Random: rand, bitrand, AbstractRNG, MersenneTwister
+using Random: Random, rand, bitrand, AbstractRNG, MersenneTwister, GLOBAL_RNG
 using SharedArrays
 import Base: rand
 

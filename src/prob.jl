@@ -20,7 +20,8 @@ end
 """
 function logpmf(kdpp::kDeterminantalPointProcess, z::AbstractArray{<:Int})
     L_z_eigvals = eigvals(kdpp.dpp.L[z, z])
-    return sum(log.(L_z_eigvals)) .- log(elem_symm_poly(kdpp.dpp.Lfact.values, kdpp.k)[end, end])
+    return sum(log.(L_z_eigvals)) .-
+           log(elem_symm_poly(kdpp.dpp.Lfact.values, kdpp.k)[end, end])
 end
 
 """Compute the probability of a sample `z` under the given DPP.

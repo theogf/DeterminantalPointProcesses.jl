@@ -71,7 +71,7 @@ end
 
         # ensure that L_z_inv makes sense (i.e., noise did not accumulate)
         z, L_z_inv = state
-        @test sum(L_z_inv[z, z] * dpp.L[z, z] - I) ≈ 0
+        @test sum(L_z_inv[z, z] * dpp.L[z, z] - I) ≈ 0 atol=1e-10
 
         # compute the empirical distribution
         empirical_pmf = zeros(Float64, length(true_pmf))

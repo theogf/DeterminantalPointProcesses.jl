@@ -131,21 +131,30 @@ Random.rand(kdpp::kDPP, n::Int) = rand(GLOBAL_RNG, kdpp, n)
 """
     Exact sampling from a DPP [1].
 """
-function Random.rand(rng::AbstractRNG, dpp::DeterminantalPointProcess{T}, N::Int) where {T<:Real}
+function Random.rand(
+    rng::AbstractRNG, dpp::DeterminantalPointProcess{T}, N::Int
+) where {T<:Real}
     Λ = SharedArray{T}(dpp.Lfact.values)
     V = SharedMatrix{T}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_mask!(MersenneTwister(seed), M, Λ, i), 1:N, abs.(rand(rng, Int, N)))
+    pmap(
+        (i, seed) -> _sample_mask!(MersenneTwister(seed), M, Λ, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
 
     # step II: iteratively sample from a mixture of elementary DPPs
     return pmap(
-        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i), 1:N, abs.(rand(rng, Int, N))
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
     )
 end
 
-"""Exact sampling from a k-DPP [1].
+"""
+    Exact sampling from a k-DPP [1].
 """
 function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
     dpp = kdpp.dpp
@@ -157,15 +166,22 @@ function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
     E = SharedMatrix{T}(elem_symm_poly(dpp.Lfact.values, kdpp.k))
 
     # step I: sample masks for elementary DPPs
-    pmap((i, seed) -> _sample_k_mask!(MersenneTwister(seed), M, Λ, E, kdpp.k, i), 1:N, abs.(rand(rng, Int, N)))
+    pmap(
+        (i, seed) -> _sample_k_mask!(MersenneTwister(seed), M, Λ, E, kdpp.k, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
 
     # step II: iteratively sample from a mixture of elementary DPPs
     return pmap(
-        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i), 1:N, abs.(rand(rng, Int, N))
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
     )
 end
 
-"""Perform one MCMC accept-reject transition for DPP.
+"""
+    Perform one MCMC accept-reject transition for DPP.
 """
 function _do_mcmc_step!(rng::AbstractRNG, dpp::DeterminantalPointProcess, state::MCMCState)
     # propose an element to swap
@@ -196,23 +212,24 @@ function _do_mcmc_k_step!(rng::AbstractRNG, kdpp::kDPP, state::MCMCState)
     u, v = rand(rng, findall(z)), rand(rng, findall(z .== true))
 
     # copy the state and delete the u element
-    new_state = _update_mcmc_state(kdpp, state, u, false)
+    new_state = _update_mcmc_state(kdpp.dpp, state, u, false)
 
     # attempt to make a transition
-    p = _comp_accept_prob(kdpp, new_state, u, v)
+    p = _comp_accept_prob(kdpp.dpp, new_state, u, v)
     if rand(rng) < p
         # insert the v element into the new state
-        _update_mcmc_state!(kdpp, new_state, v, true)
+        _update_mcmc_state!(kdpp.dpp, new_state, v, true)
         state[1] .= new_state[1]
         state[2] .= new_state[2]
     end
 end
 
+"""
+    Compute accept probability to insert / delete u from the state.
+"""
 function _comp_accept_prob(
     dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
 )
-    """Compute accept probability to insert / delete u from the state.
-    """
     z, L_z_inv = state
 
     d_u = dpp.L[u, u]
@@ -224,9 +241,10 @@ function _comp_accept_prob(
     return insert ? min(1.0, d_u) : min(1.0, 1.0 / d_u)
 end
 
+"""
+    Compute accept probability to swap u and v.
+"""
 function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState, u::Int, v::Int)
-    """Compute accept probability to swap u and v.
-    """
     z, L_z_inv = state
 
     d_u, d_v = dpp.L[u, u], dpp.L[v, v]
@@ -239,11 +257,12 @@ function _comp_accept_prob(dpp::DeterminantalPointProcess, state::MCMCState, u::
     return min(1.0, d_v / d_u)
 end
 
+"""
+    Update the state after u is inserted / deleted.
+"""
 function _update_mcmc_state!(
     dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
 )
-    """Update the state after u is inserted / deleted.
-    """
     z, L_z_inv = state
 
     if insert
@@ -269,16 +288,24 @@ function _update_mcmc_state!(
     end
 end
 
+"""
+    Update the state after u is inserted / deleted.
+"""
 function _update_mcmc_state(
     dpp::DeterminantalPointProcess, state::MCMCState, u::Int, insert::Bool
 )
-    """Update the state after u is inserted / deleted.
-    """
     new_state = deepcopy(state)
     _update_mcmc_state!(dpp, new_state, u, insert)
     return new_state
 end
 
+
+"""
+    MCMC sampling from a DPP [2].
+
+TODO: Add support for running MCMC in parallel, similar as rand.
+          Make sure parallelization produces unbiased and consistent samples.
+"""
 function randmcmc(
     rng::AbstractRNG,
     dpp::DeterminantalPointProcess{T},
@@ -289,11 +316,6 @@ function randmcmc(
     mixing_steps::Int=ceil(Int, dpp.size * log(dpp.size / mix_eps)),
     steps_between_samples::Int=mixing_steps,
 ) where {T}
-    """MCMC sampling from a DPP [2].
-
-    TODO: Add support for running MCMC in parallel, similar as rand.
-          Make sure parallelization produces unbiased and consistent samples.
-    """
     # initialize the Markov chain
     state = init_state
     if state === nothing
@@ -325,6 +347,49 @@ function randmcmc(
 end
 
 function randmcmc(
+    dpp::DeterminantalPointProcess,
+    N::Int;
+    init_state=nothing,
+    return_final_state::Bool=false,
+    mix_eps::Real=1e-1,
+    mixing_steps::Int=ceil(Int, dpp.size * log(dpp.size / mix_eps)),
+    steps_between_samples::Int=mixing_steps,
+)
+    return randmcmc(
+        GLOBAL_RNG,
+        dpp,
+        N;
+        init_state=init_state,
+        return_final_state=return_final_state,
+        mix_eps=mix_eps,
+        mixing_steps=mixing_steps,
+        steps_between_samples=steps_between_samples,
+    )
+end
+
+"""
+    randmcmc([rng::AbstractRNG], kdpp::kDPP, N::Int; kwargs...)
+
+MCMC sampling from a k-DPP [2].
+
+## Arguments
+
+- `rng` : Random number generator (by default Random.GLOBAL_RNG is used)
+- `kdpp` : k-DeterminantalPointProcess
+- `N` : Number of samples
+
+## Keyword Arguments
+
+- `init_state`
+- `return_final_state`
+- `mix_eps`
+- `mixing_steps`
+- `steps_between_samples`
+
+TODO: Add support for running MCMC in parallel, similar as rand.
+        Make sure parallelization produces unbiased and consistent samples.
+"""
+function randmcmc(
     rng::AbstractRNG,
     kdpp::kDPP{T},
     N::Int;
@@ -334,17 +399,13 @@ function randmcmc(
     mixing_steps::Int=ceil(Int, kdpp.k * log(kdpp.k / mix_eps)),
     steps_between_samples::Int=mixing_steps,
 ) where {T}
-    """MCMC sampling from a k-DPP [2].
 
-    TODO: Add support for running MCMC in parallel, similar as rand.
-          Make sure parallelization produces unbiased and consistent samples.
-    """
     # initialize the Markov chain
     state = init_state
     if state === nothing
         L_z_inv = Array{T}(undef, size(kdpp.dpp.L))
         z = falses(kdpp.dpp.size)  # TODO: improve initialization (?)
-        z[1:kdpp.k] .= true
+        z[1:(kdpp.k)] .= true
         if any(z)
             L_z_inv[z, z] = pinv(kdpp.dpp.L[z, z])
         end
@@ -357,16 +418,37 @@ function randmcmc(
 
     # mix the Markov chain
     for t in 1:mixing_steps
-        _do_mcmc_k_step!(rng, kdpp.dpp, state)
+        _do_mcmc_k_step!(rng, kdpp, state)
     end
 
     Y = []
     for i in 1:N
         push!(Y, findall(state[1]))
         for t in 1:steps_between_samples
-            _do_mcmc_k_step!(rng, kdpp.dpp, state)
+            _do_mcmc_k_step!(rng, kdpp, state)
         end
     end
 
     return return_final_state ? (Y, state) : Y
+end
+
+function randmcmc(
+    kdpp::kDPP,
+    N::Int;
+    init_state=nothing,
+    return_final_state::Bool=false,
+    mix_eps::Real=1e-1,
+    mixing_steps::Int=ceil(Int, kdpp.k * log(kdpp.k / mix_eps)),
+    steps_between_samples::Int=mixing_steps,
+)
+    return randmcmc(
+        GLOBAL_RNG,
+        kdpp,
+        N;
+        init_state=init_state,
+        return_final_state=return_final_state,
+        mix_eps=mix_eps,
+        mixing_steps=mixing_steps,
+        steps_between_samples=steps_between_samples,
+    )
 end
