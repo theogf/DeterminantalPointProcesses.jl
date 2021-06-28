@@ -1,3 +1,5 @@
+using .KernelFunctions
+
 function DeterminantalPointProcess(kernel::Kernel, X::AbstractVector)
     return DeterminantalPointProcess(kernelmatrix(kernel, X))
 end
