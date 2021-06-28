@@ -18,7 +18,7 @@ dpp = DPP(L)
     @testset "Kernel API" begin
         K = kernelmatrix(kernel, X)
         @test DPP(K).L ≈ DPP(kernel, X).L
-        @test DPP(K).L ≈ DPP(kernel, reduce(hcat, X); obsdim=2)
+        @test DPP(K).L ≈ DPP(kernel, reduce(hcat, X); obsdim=2).L
     end
     @testset "For DPP" begin
         # compute the true distribution

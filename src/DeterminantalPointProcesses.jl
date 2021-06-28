@@ -10,7 +10,6 @@ __precompile__(true)
 module DeterminantalPointProcesses
 
 using Distributed
-using KernelFunctions
 using LinearAlgebra
 using Random: Random, rand, bitrand, AbstractRNG, MersenneTwister, GLOBAL_RNG
 using Requires
