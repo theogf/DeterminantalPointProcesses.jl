@@ -32,14 +32,6 @@ function DeterminantalPointProcess(Lfact::Eigen)
     return new{eltype(L),typeof(L),typeof(Lfact)}(L, Lfact, length(Lfact.values))
 end
 
-function DeterminantalPointProcess(kernel::Kernel, X::AbstractVector)
-    return DeterminantalPointProcess(kernelmatrix(kernel, X))
-end
-
-function DeterminantalPointProcess(kernel::Kernel, X::AbstractMatrix; obsdim=1)
-    return DeterminantalPointProcess(kernel, vec_of_vecs(X; obsdim=obsdim))
-end
-
 """
     kDeterminantalPointProcess(k::Int, dpp::DeterminantalPointProcess)
 

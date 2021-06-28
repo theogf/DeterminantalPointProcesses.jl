@@ -1,6 +1,7 @@
 using DeterminantalPointProcesses
 using Test
 using Random, LinearAlgebra, IterTools
+using KernelFunctions
 import Combinatorics: combinations
 
 rng = MersenneTwister(42)
@@ -9,9 +10,16 @@ n = 5
 k = 2
 A = rand(rng, n, n)
 L = Symmetric(A * A')
+kernel = SqExponentialKernel()
+X = [rand(2) for _ in 1:3]
 dpp = DPP(L)
 
 @testset "Ensure correct pmf and logpmf computation" begin
+    @testset "Kernel API" begin
+        K = kernelmatrix(kernel, X)
+        @test DPP(K).L ≈ DPP(kernel, X).L
+        @test DPP(K).L ≈ DPP(kernel, reduce(hcat, X); obsdim=2)
+    end
     @testset "For DPP" begin
         # compute the true distribution
         true_pmf = Float64[]

@@ -13,6 +13,7 @@ using Distributed
 using KernelFunctions
 using LinearAlgebra
 using Random: Random, rand, bitrand, AbstractRNG, MersenneTwister, GLOBAL_RNG
+using Requires
 using SharedArrays
 import Base: rand
 
@@ -30,6 +31,10 @@ export
     randmcmc            # generate samples using MCMC
 
 ### source files
+function __init__()
+    @require KernelFunctions="ec8451be-7e33-11e9-00cf-bbf324bd1392" include("kernelcompat.jl")
+end
+
 
 # types
 include("types.jl")
