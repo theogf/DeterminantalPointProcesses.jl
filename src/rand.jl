@@ -1,14 +1,5 @@
 """
 Sampling from DPP and k-DPP.
-
-Methods:
---------
-    rand(dpp::DeterminantalPointProcess)
-    rand(dpp::DeterminantalPointProcess, N::Int)
-    randmcmc(dpp::DeterminantalPointProcess, N::Int)
-    rand(dpp::DeterminantalPointProcess, N::Int, k::Int)
-    randmcmc(dpp::DeterminantalPointProcess, N::Int, k::Int)
-
 References:
 -----------
     [1] Kulesza, A., and B. Taskar. Determinantal point processes for machine
@@ -23,7 +14,7 @@ References:
 Sample a mask for an elementary DPP.
 """
 function _sample_mask!(
-    rng::AbstractRNG, M::SharedMatrix{Bool}, Λ::SharedArray{<:Real}, i::Int
+    rng::AbstractRNG, M::AbstractMatrix{Bool}, Λ::AbstractArray{<:Real}, i::Int
 )
     for j in 1:length(Λ)
         M[j, i] = rand(rng) < (Λ[j] / (Λ[j] + 1))
@@ -38,9 +29,9 @@ Sample a mask for an elementary k-DPP.
 """
 function _sample_k_mask!(
     rng::AbstractRNG,
-    M::SharedMatrix{Bool},
-    Λ::SharedArray{<:Real},
-    E::SharedMatrix{<:Real},
+    M::AbstractMatrix{Bool},
+    Λ::AbstractArray{<:Real},
+    E::AbstractMatrix{<:Real},
     k::Int,
     i::Int,
 )
@@ -72,13 +63,13 @@ end
 Exact sampling from an elementary DPP. The algorithm based on [1].
 """
 function _sample_from_elementary(
-    rng::AbstractRNG, V::SharedMatrix{T}, M::SharedMatrix{Bool}, i::Int
+    rng::AbstractRNG, V::AbstractMatrix{T}, M::AbstractMatrix{Bool}, i::Int
 ) where {T<:Real}
     # select the elementary DPP
     V_mask = M[:, i]
 
     # edge case: empty sample
-    if !any(V_mask)
+    if isempty(V_mask) # !any(V_mask)
         return Int[]
     end
 
@@ -87,11 +78,11 @@ function _sample_from_elementary(
 
     Y = Int[]
     mask = ones(Bool, size(L, 2))
-    prob = Array{T}(undef, size(L, 1))
+    prob = zeros(T, size(L, 1))
 
     for i in 1:size(L, 2)
         # compute probabilities
-        fill!(prob, 0)
+        fill!(prob, zero(T))
         for c in 1:size(L, 2)
             !mask[c] && continue
             for r in 1:size(L, 1)
@@ -140,8 +131,7 @@ Returns a vector of indices with respect to the `L` matrix passed to the `Determ
 The length of each vector can vary from 0 to the `size(L,1)`
 """
 function Random.rand(
-    rng::AbstractRNG, dpp::DeterminantalPointProcess{T}, N::Int
-) where {T<:Real}
+    rng::AbstractRNG, dpp::DeterminantalPointProcess{T,true}, N::Int) where {T<:Real}
     Λ = SharedArray{T}(dpp.Lfact.values)
     V = SharedMatrix{T}(dpp.Lfact.vectors)
     M = SharedMatrix{Bool}(zeros(Bool, dpp.size, N))
@@ -161,6 +151,28 @@ function Random.rand(
     )
 end
 
+function Random.rand(
+    rng::AbstractRNG, dpp::DeterminantalPointProcess{T,false}, N::Int) where {T<:Real}
+    Λ = Array{T}(dpp.Lfact.values)
+    V = Matrix{T}(dpp.Lfact.vectors)
+    M = Matrix{Bool}(zeros(Bool, dpp.size, N))
+
+    # step I: sample masks for elementary DPPs
+    map(
+        (i, seed) -> _sample_mask!(MersenneTwister(seed), M, Λ, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
+
+    # step II: iteratively sample from a mixture of elementary DPPs
+    return map(
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
+end
+
+
 """
     rand([rng::AbstractRNG], kdpp::kDeterminantalPointProcess)::Vector{Int}
     rand([rng::AbstractRNG], kdpp::kDeterminantalPointProcess, n::Int)::Vector{Vector{Int}}
@@ -169,7 +181,7 @@ Exact sampling from a k-DPP [1].
 Returns a vector of indices with respect to the `L` matrix passed to the `kDeterminantalPointProcess`
 Each vector is of size `k`.
 """
-function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
+function Random.rand(rng::AbstractRNG, kdpp::kDPP{T,true}, N::Int) where {T<:Real}
     dpp = kdpp.dpp
     Λ = SharedArray{T}(dpp.Lfact.values)
     V = SharedMatrix{T}(dpp.Lfact.vectors)
@@ -187,6 +199,30 @@ function Random.rand(rng::AbstractRNG, kdpp::kDPP{T}, N::Int) where {T<:Real}
 
     # step II: iteratively sample from a mixture of elementary DPPs
     return pmap(
+        (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
+end
+
+function Random.rand(rng::AbstractRNG, kdpp::kDPP{T,false}, N::Int) where {T<:Real}
+    dpp = kdpp.dpp
+    Λ = Array{T}(dpp.Lfact.values)
+    V = Matrix{T}(dpp.Lfact.vectors)
+    M = Matrix{Bool}(zeros(Bool, dpp.size, N))
+
+    # compute elementary symmetric polynomials
+    E = Matrix{T}(elem_symm_poly(dpp.Lfact.values, kdpp.k))
+
+    # step I: sample masks for elementary DPPs
+    map(
+        (i, seed) -> _sample_k_mask!(MersenneTwister(seed), M, Λ, E, kdpp.k, i),
+        1:N,
+        abs.(rand(rng, Int, N)),
+    )
+
+    # step II: iteratively sample from a mixture of elementary DPPs
+    return map(
         (i, seed) -> _sample_from_elementary(MersenneTwister(seed), V, M, i),
         1:N,
         abs.(rand(rng, Int, N)),

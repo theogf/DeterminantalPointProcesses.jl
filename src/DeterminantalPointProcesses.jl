@@ -10,6 +10,7 @@ __precompile__(true)
 module DeterminantalPointProcesses
 
 using Distributed
+using Distributions: Distributions, pdf, logpdf
 using LinearAlgebra
 using Random: Random, rand, bitrand, AbstractRNG, MersenneTwister, GLOBAL_RNG
 using Requires
@@ -24,22 +25,21 @@ export
     kDPP,
 
     # mehtods
-    logpmf,             # log probability mass function
-    pmf,                # probability mass function
+    logpdf,             # log probability mass function
+    pdf,                # probability mass function
     rand,               # generate samples
     randmcmc            # generate samples using MCMC
 
-### source files
+
 function __init__()
     @require KernelFunctions="ec8451be-7e33-11e9-00cf-bbf324bd1392" include("kernelcompat.jl")
 end
+### source files
 
-
-# types
+# Types
 include("types.jl")
 
-# methods
-include("fit.jl")
+# pdf and rand methods
 include("prob.jl")
 include("rand.jl")
 
