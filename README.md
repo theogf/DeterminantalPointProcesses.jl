@@ -1,6 +1,6 @@
 # DeterminantalPointProcesses.jl
 
-[![Build Badge](https://travis-ci.org/theogf/DeterminantalPointProcesses.jl.svg)](https://travis-ci.org/theogf/DeterminantalPointProcesses.jl)
+[![CI](https://github.com/theogf/DeterminantalPointProcesses.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/theogf/DeterminantalPointProcesses.jl/actions/workflows/CI.yml)
 [![Coverage Status](https://coveralls.io/repos/github/theogf/DeterminantalPointProcesses.jl/badge.svg?branch=master)](https://coveralls.io/github/theogf/DeterminantalPointProcesses.jl?branch=master)
 
 !__Disclaimer__! This package is based on the work of [alshedivat/DeterminantalPointProcesses.jl](https://github.com/alshedivat/DeterminantalPointProcesses.jl) and aims at keeping this package alive.
