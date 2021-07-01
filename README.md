@@ -10,7 +10,7 @@ An efficient implementation of Determinantal Point Processes (DPP) in Julia.
 ### Current features
 - Exact sampling [1] from DPP and k-DPP (can be executed in parallel).
 - MCMC sampling [2] from DPP and k-DPP (parallelization will be added).
-- `pmf` and `logpmf` evaluation functions [1] for DPP and k-DPP.
+- `pdf` and `logpdf` evaluation functions [1] for DPP and k-DPP.
 
 ### Planned features
 - Exact sampling using dual representation [1].
