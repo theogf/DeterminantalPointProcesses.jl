@@ -14,14 +14,14 @@ An efficient implementation of Determinantal Point Processes (DPP) in Julia.
 
 ### Planned features
 - Exact sampling using dual representation [1].
-- Better integration with MCMC frameworks in Julia (such as [Lora.jl]).
+- Better integration with MCMC frameworks in Julia (such as [Lora.jl] or [AbstractMCMC.jl]).
 - Fitting DPP and k-DPP models to data [3, 4].
 - Reduced rank DPP and k-DPP.
 - Kronecker Determinantal Point Processes [5].
 
-### Contributing
-Currently, no timeline, no milestones, no promisses.
+Any help on these topics would be highly appreciated
 
+### Contributing
 Contributions are sought (especially if you are an author of a related paper).
 Bug reports are welcome.
 
@@ -37,15 +37,7 @@ Bug reports are welcome.
 [5] Mariet, Z., and S. Sra. Kronecker Determinantal Point Processes. [arXiv:1605.08374], 2016.
 
 
-[Julia-0.4 Badge]: http://pkg.julialang.org/badges/DeterminantalPointProcesses_0.4.svg
-[Julia-0.5 Badge]: http://pkg.julialang.org/badges/DeterminantalPointProcesses_0.5.svg
-[DPP-pkg]: http://pkg.julialang.org/?pkg=DeterminantalPointProcesses
-
-[Build Badge]: https://travis-ci.org/alshedivat/DeterminantalPointProcesses.jl.svg
-[Build Status]: https://travis-ci.org/alshedivat/DeterminantalPointProcesses.jl
-[Coverage Badge]: https://coveralls.io/repos/github/alshedivat/DeterminantalPointProcesses.jl/badge.svg
-[Coverage Status]: https://coveralls.io/github/alshedivat/DeterminantalPointProcesses.jl
-
 [Lora.jl]: https://github.com/JuliaStats/Lora.jl
+[AbstractMCMC.jl]: https://github.com/TuringLang/AbstractMCMC.jl
 [arXiv:1207.6083]: https://arxiv.org/abs/1207.6083
 [arXiv:1605.08374]: https://arxiv.org/abs/1605.08374
