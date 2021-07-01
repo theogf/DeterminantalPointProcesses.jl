@@ -1,6 +1,6 @@
 name = "DeterminantalPointProcesses"
 uuid = "4d968f93-c0cd-4b7f-b189-b034d1a24a0e"
-version = "0.2.0"
+version = "0.2.1"
 
 [deps]
 Combinatorics = "861a8166-3701-5b0c-9a16-15d98fcdc6aa"
